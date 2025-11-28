@@ -177,7 +177,22 @@ func ConvertFromChatOpenai(request *types.ChatCompletionRequest) (*GeminiChatReq
 		}
 	}
 
-	if config.GeminiSettingsInstance.GetOpenThink(request.Model) {
+	// 处理独立的 thinkingLevel 参数 (适用于 Gemini 3 及以上版本)
+	if request.ThinkingLevel != nil {
+		if geminiRequest.GenerationConfig.ThinkingConfig == nil {
+			geminiRequest.GenerationConfig.ThinkingConfig = &ThinkingConfig{}
+		}
+		geminiRequest.GenerationConfig.ThinkingConfig.ThinkingLevel = request.ThinkingLevel
+	}
+
+	// 处理 includeThoughts 参数 (控制是否在响应中包含思考内容)
+	// 优先使用用户显式设置的值，否则使用配置文件的默认值
+	if request.IncludeThoughts != nil {
+		if geminiRequest.GenerationConfig.ThinkingConfig == nil {
+			geminiRequest.GenerationConfig.ThinkingConfig = &ThinkingConfig{}
+		}
+		geminiRequest.GenerationConfig.ThinkingConfig.IncludeThoughts = *request.IncludeThoughts
+	} else if config.GeminiSettingsInstance.GetOpenThink(request.Model) {
 		if geminiRequest.GenerationConfig.ThinkingConfig == nil {
 			geminiRequest.GenerationConfig.ThinkingConfig = &ThinkingConfig{}
 		}

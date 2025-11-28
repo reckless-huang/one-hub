@@ -213,9 +213,11 @@ type ChatCompletionRequest struct {
 	Reasoning *ChatReasoning `json:"reasoning,omitempty"`
 
 	// 考虑到后续一些模型逐步采用openai api格式扩展参数的方式进行服务提供，所以考虑把一些模型的特有参数放入可选参数
-	EnableThinking *bool `json:"enable_thinking,omitempty"` // qwen3 思考开关
-	ThinkingBudget *int  `json:"thinking_budget,omitempty"` // qwen3 思考长度，只有enable_thinking开启才生效
-	EnableSearch   *bool `json:"enable_search,omitempty"`   // qwen 搜索开关
+	EnableThinking  *bool   `json:"enable_thinking,omitempty"`  // qwen3 思考开关
+	ThinkingBudget  *int    `json:"thinking_budget,omitempty"`  // qwen3 思考长度，只有enable_thinking开启才生效
+	ThinkingLevel   *string `json:"thinking_level,omitempty"`   // gemini3 思考级别，可选值: "low" 或 "high"
+	IncludeThoughts *bool   `json:"include_thoughts,omitempty"` // gemini3 是否在响应中包含思考内容，默认为 false
+	EnableSearch    *bool   `json:"enable_search,omitempty"`    // qwen 搜索开关
 
 	OneOtherArg string `json:"-"`
 }
