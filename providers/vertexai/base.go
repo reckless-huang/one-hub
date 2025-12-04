@@ -40,7 +40,7 @@ func (f VertexAIProviderFactory) Create(channel *model.Channel) base.ProviderInt
 
 	vertexAIProvider := &VertexAIProvider{
 		BaseProvider: base.BaseProvider{
-			Config:    getConfig(),
+			Config:    getConfig(channel),
 			Channel:   channel,
 			Requester: requester.NewHTTPRequester(proxyAddr, nil),
 		},
@@ -57,7 +57,15 @@ type VertexAIProvider struct {
 	Category  *category.Category
 }
 
-func getConfig() base.ProviderConfig {
+func getConfig(channel *model.Channel) base.ProviderConfig {
+	// 兼容GCP的claude访问，baseurl不一样
+	if strings.Contains(channel.Models, "claude-sonnet-4-5@20250929") {
+		return base.ProviderConfig{
+			BaseURL:           "https://%saiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/anthropic/models/%s:%s",
+			ChatCompletions:   "/",
+			ImagesGenerations: "/predict",
+		}
+	}
 	return base.ProviderConfig{
 		BaseURL:           "https://%saiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:%s",
 		ChatCompletions:   "/",
@@ -180,7 +188,7 @@ func errorHandle(vertexaiError *VertexaiError) *types.OpenAIError {
 	}
 
 	return &types.OpenAIError{
-		Message: "VertexAI错误",
+		Message: vertexaiError.Error.Message,
 		Type:    "gemini_error",
 		Param:   vertexaiError.Error.Status,
 		Code:    vertexaiError.Error.Code,
