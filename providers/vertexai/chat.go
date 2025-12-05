@@ -1,6 +1,7 @@
 package vertexai
 
 import (
+	"encoding/json"
 	"net/http"
 	"one-api/common"
 	"one-api/common/requester"
@@ -70,13 +71,48 @@ func (p *VertexAIProvider) getChatRequest(request *types.ChatCompletionRequest) 
 		return nil, errWithCode
 	}
 
-	// 错误处理
-	p.Requester.ErrorHandler = RequestErrorHandle(p.Category.ErrorHandler)
+	// 处理额外参数
+	customParams, err := p.CustomParameterHandler()
+	if err != nil {
+		return nil, common.ErrorWrapper(err, "custom_parameter_error", http.StatusInternalServerError)
+	}
 
 	// 创建请求
-	req, err := p.Requester.NewRequest(http.MethodPost, fullRequestURL, p.Requester.WithBody(vertexaiRequest), p.Requester.WithHeader(headers))
-	if err != nil {
-		return nil, common.ErrorWrapperLocal(err, "new_request_failed", http.StatusInternalServerError)
+	var req *http.Request
+	if customParams != nil {
+		// 将请求体转换为map，以便添加额外参数
+		var requestMap map[string]interface{}
+		requestBytes, err := json.Marshal(vertexaiRequest)
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "marshal_request_failed", http.StatusInternalServerError)
+		}
+
+		err = json.Unmarshal(requestBytes, &requestMap)
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "unmarshal_request_failed", http.StatusInternalServerError)
+		}
+
+		// 合并自定义参数
+		requestMap = p.mergeCustomParams(requestMap, customParams)
+
+		// 错误处理
+		p.Requester.ErrorHandler = RequestErrorHandle(p.Category.ErrorHandler)
+
+		// 使用修改后的请求体创建请求
+		req, err = p.Requester.NewRequest(http.MethodPost, fullRequestURL, p.Requester.WithBody(requestMap), p.Requester.WithHeader(headers))
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "new_request_failed", http.StatusInternalServerError)
+		}
+	} else {
+		// 错误处理
+		p.Requester.ErrorHandler = RequestErrorHandle(p.Category.ErrorHandler)
+
+		// 如果没有额外参数，使用原始请求体创建请求
+		req, err = p.Requester.NewRequest(http.MethodPost, fullRequestURL, p.Requester.WithBody(vertexaiRequest), p.Requester.WithHeader(headers))
+		if err != nil {
+			return nil, common.ErrorWrapper(err, "new_request_failed", http.StatusInternalServerError)
+		}
 	}
+
 	return req, nil
 }
