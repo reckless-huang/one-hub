@@ -38,10 +38,13 @@ type ChatCompletionToolCallsFunction struct {
 }
 
 type ChatCompletionToolCalls struct {
-	Id       string                           `json:"id,omitempty"`
-	Type     string                           `json:"type,omitempty"`
-	Function *ChatCompletionToolCallsFunction `json:"function"`
-	Index    int                              `json:"index"`
+	Id               string                           `json:"id,omitempty"`
+	Type             string                           `json:"type,omitempty"`
+	Function         *ChatCompletionToolCallsFunction `json:"function"`
+	Index            int                              `json:"index"`
+	ThoughtSignature json.RawMessage                  `json:"thought_signature,omitempty"` // Gemini 3 字段
+	MediaResolution  json.RawMessage                  `json:"media_resolution,omitempty"`  // Gemini 3 字段
+	VideoMetadata    json.RawMessage                  `json:"video_metadata,omitempty"`    // Gemini 3 字段
 }
 
 type ChatCompletionMessage struct {

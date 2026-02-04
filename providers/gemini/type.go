@@ -72,6 +72,9 @@ type GeminiPart struct {
 	ExecutableCode      *GeminiPartExecutableCode      `json:"executableCode,omitempty"`
 	CodeExecutionResult *GeminiPartCodeExecutionResult `json:"codeExecutionResult,omitempty"`
 	Thought             bool                           `json:"thought,omitempty"` // 是否是思考内容
+	ThoughtSignature    json.RawMessage                `json:"thoughtSignature,omitempty"`
+	MediaResolution     json.RawMessage                `json:"mediaResolution,omitempty"`
+	VideoMetadata       json.RawMessage                `json:"videoMetadata,omitempty"`
 }
 
 type GeminiPartExecutableCode struct {
@@ -112,7 +115,7 @@ func (candidate *GeminiChatCandidate) ToOpenAIStreamChoice(request *types.ChatCo
 				choice.Delta.ToolCalls = make([]*types.ChatCompletionToolCalls, 0)
 			}
 			isTools = true
-			choice.Delta.ToolCalls = append(choice.Delta.ToolCalls, part.FunctionCall.ToOpenAITool())
+			choice.Delta.ToolCalls = append(choice.Delta.ToolCalls, part.ToOpenAIToolWithMetadata())
 		} else if part.InlineData != nil {
 			if strings.HasPrefix(part.InlineData.MimeType, "image/") {
 				images = append(images, types.MultimediaData{
@@ -154,7 +157,7 @@ func (candidate *GeminiChatCandidate) ToOpenAIStreamChoice(request *types.ChatCo
 	if candidate.GroundingMetadata != nil && showGoogleSearchMeta(request) {
 		groundingMarkdown := formatGroundingMetadataAsMarkdown(candidate.GroundingMetadata)
 		if groundingMarkdown != "" {
-			content = append(content, "\n\n" + groundingMarkdown)
+			content = append(content, "\n\n"+groundingMarkdown)
 		}
 	}
 
@@ -201,7 +204,7 @@ func (candidate *GeminiChatCandidate) ToOpenAIChoice(request *types.ChatCompleti
 				choice.Message.ToolCalls = make([]*types.ChatCompletionToolCalls, 0)
 			}
 			useTools = true
-			choice.Message.ToolCalls = append(choice.Message.ToolCalls, part.FunctionCall.ToOpenAITool())
+			choice.Message.ToolCalls = append(choice.Message.ToolCalls, part.ToOpenAIToolWithMetadata())
 		} else if part.InlineData != nil {
 			if strings.HasPrefix(part.InlineData.MimeType, "image/") {
 
@@ -268,8 +271,12 @@ func (candidate *GeminiChatCandidate) ToOpenAIChoice(request *types.ChatCompleti
 }
 
 type GeminiFunctionResponse struct {
-	Name     string `json:"name,omitempty"`
-	Response any    `json:"response,omitempty"`
+	Name         string          `json:"name,omitempty"`
+	Response     any             `json:"response,omitempty"`
+	WillContinue json.RawMessage `json:"willContinue,omitempty"`
+	Scheduling   json.RawMessage `json:"scheduling,omitempty"`
+	Parts        json.RawMessage `json:"parts,omitempty"`
+	ID           json.RawMessage `json:"id,omitempty"`
 }
 
 type GeminiFunctionResponseContent struct {
@@ -289,6 +296,38 @@ func (g *GeminiFunctionCall) ToOpenAITool() *types.ChatCompletionToolCalls {
 			Arguments: string(args),
 		},
 	}
+}
+
+// ToOpenAIToolWithMetadata 转换为 OpenAI Tool 格式，包含 Gemini 3 的元数据
+func (part *GeminiPart) ToOpenAIToolWithMetadata() *types.ChatCompletionToolCalls {
+	if part.FunctionCall == nil {
+		return nil
+	}
+
+	args, _ := json.Marshal(part.FunctionCall.Args)
+
+	tool := &types.ChatCompletionToolCalls{
+		Id:    "call_" + utils.GetRandomString(24),
+		Type:  types.ChatMessageRoleFunction,
+		Index: 0,
+		Function: &types.ChatCompletionToolCallsFunction{
+			Name:      part.FunctionCall.Name,
+			Arguments: string(args),
+		},
+	}
+
+	// 保存 Gemini 3 的元数据
+	if part.ThoughtSignature != nil {
+		tool.ThoughtSignature = part.ThoughtSignature
+	}
+	if part.MediaResolution != nil {
+		tool.MediaResolution = part.MediaResolution
+	}
+	if part.VideoMetadata != nil {
+		tool.VideoMetadata = part.VideoMetadata
+	}
+
+	return tool
 }
 
 type GeminiChatContent struct {
@@ -437,12 +476,25 @@ func OpenAIToGeminiChatContent(openaiContents []types.ChatCompletionMessage) ([]
 					json.Unmarshal([]byte(toolCall.Function.Arguments), &args)
 				}
 
-				content.Parts = append(content.Parts, GeminiPart{
+				part := GeminiPart{
 					FunctionCall: &GeminiFunctionCall{
 						Name: toolCall.Function.Name,
 						Args: args,
 					},
-				})
+				}
+
+				// 恢复 Gemini 3 的元数据（如果客户端提供了）
+				if toolCall.ThoughtSignature != nil {
+					part.ThoughtSignature = toolCall.ThoughtSignature
+				}
+				if toolCall.MediaResolution != nil {
+					part.MediaResolution = toolCall.MediaResolution
+				}
+				if toolCall.VideoMetadata != nil {
+					part.VideoMetadata = toolCall.VideoMetadata
+				}
+
+				content.Parts = append(content.Parts, part)
 
 			}
 			text := openaiContent.StringContent()
@@ -454,6 +506,12 @@ func OpenAIToGeminiChatContent(openaiContents []types.ChatCompletionMessage) ([]
 				if toolName, exists := toolCallId[openaiContent.ToolCallID]; exists {
 					openaiContent.Name = &toolName
 				}
+			}
+
+			// 如果 Name 仍然为 nil，跳过这条消息或使用默认值
+			if openaiContent.Name == nil {
+				defaultName := "unknown_function"
+				openaiContent.Name = &defaultName
 			}
 
 			functionPart := GeminiPart{
