@@ -2,6 +2,7 @@ package relay
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"one-api/common"
@@ -180,7 +181,7 @@ func (r *relayResponses) chatToResponseStreamClient(stream requester.StreamReade
 						converter.ProcessError(err.Error())
 					}
 
-					logger.LogError(r.c.Request.Context(), "Stream err:"+err.Error())
+					logger.LogError(r.c.Request.Context(), fmt.Sprintf("Stream err (channel #%d(%s)): %s", r.c.GetInt("channel_id"), r.c.GetString("channel_name"), err.Error()))
 				} else {
 					// 要发送最后的完成状态
 					converter.ProcessStreamData("[DONE]")

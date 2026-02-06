@@ -56,7 +56,7 @@ func RelayTaskSubmit(c *gin.Context) {
 	retryTimes := config.RetryTimes
 
 	if !taskAdaptor.ShouldRetry(c, taskErr) {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("relay error happen, status code is %d, won't retry in this case", taskErr.StatusCode))
+		logger.LogError(c.Request.Context(), fmt.Sprintf("relay error happen, status code is %d, won't retry in this case (channel #%d(%s))", taskErr.StatusCode, c.GetInt("channel_id"), c.GetString("channel_name")))
 		retryTimes = 0
 	}
 

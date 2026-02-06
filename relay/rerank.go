@@ -35,7 +35,7 @@ func RelayRerank(c *gin.Context) {
 
 	retryTimes := config.RetryTimes
 	if done || !shouldRetry(c, apiErr, channel.Type) {
-		logger.LogError(c.Request.Context(), fmt.Sprintf("relay error happen, status code is %d, won't retry in this case", apiErr.StatusCode))
+		logger.LogError(c.Request.Context(), fmt.Sprintf("relay error happen, status code is %d, won't retry in this case (channel #%d(%s))", apiErr.StatusCode, c.GetInt("channel_id"), c.GetString("channel_name")))
 		retryTimes = 0
 	}
 

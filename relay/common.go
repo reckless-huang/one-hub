@@ -340,7 +340,7 @@ func responseStreamClient(c *gin.Context, stream requester.StreamReaderInterface
 					}
 
 					finalErr = common.StringErrorWrapper(err.Error(), "stream_error", 900)
-					logger.LogError(c.Request.Context(), "Stream err:"+err.Error())
+					logger.LogError(c.Request.Context(), fmt.Sprintf("Stream err (channel #%d(%s)): %s", c.GetInt("channel_id"), c.GetString("channel_name"), err.Error()))
 				} else {
 					// 正常结束，处理endHandler
 					if finalErr == nil && endHandler != nil {
@@ -424,7 +424,7 @@ func responseGeneralStreamClient(c *gin.Context, stream requester.StreamReaderIn
 						c.Writer.Flush()
 					}
 
-					logger.LogError(c.Request.Context(), "Stream err:"+err.Error())
+					logger.LogError(c.Request.Context(), fmt.Sprintf("Stream err (channel #%d(%s)): %s", c.GetInt("channel_id"), c.GetString("channel_name"), err.Error()))
 				} else {
 					// 正常结束，处理endHandler
 					if endHandler != nil {
