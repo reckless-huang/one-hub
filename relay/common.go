@@ -187,7 +187,7 @@ func (gm *GroupManager) TryWithGroups(modelName string, filters []model.Channels
 		if err == nil {
 			return channel, nil
 		}
-		logger.LogError(gm.context.Request.Context(), fmt.Sprintf("主分组 %s 失败: %v", gm.primaryGroup, err))
+		logger.LogError(gm.context.Request.Context(), fmt.Sprintf("主分组 %s 失败 (model: %s): %v", gm.primaryGroup, modelName, err))
 	}
 
 	// 如果主分组失败，尝试备用分组
