@@ -149,7 +149,10 @@ func (p *VertexAIProvider) GetToken() (string, error) {
 	}
 
 	duration := time.Until(resp.ExpireTime.AsTime())
-	cache.SetCache(cacheKey, resp.AccessToken, duration)
+	logger.SysLog(fmt.Sprintf("Vertex AI token length: %d bytes, cache key: %s, duration: %v", len(resp.AccessToken), cacheKey, duration))
+	if err := cache.SetCache(cacheKey, resp.AccessToken, duration); err != nil {
+		logger.SysError(fmt.Sprintf("Failed to set token to cache: %s, token length: %d", err.Error(), len(resp.AccessToken)))
+	}
 
 	return resp.AccessToken, nil
 }

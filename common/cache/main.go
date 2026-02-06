@@ -30,7 +30,7 @@ func InitCacheManager() {
 		redisStore := redis_store.NewRedis(redis.RDB)
 		client = cacheM.New[any](redisStore)
 	} else {
-		freecacheStore := freecache_store.NewFreecache(freecache.NewCache(1024 * 1024))
+		freecacheStore := freecache_store.NewFreecache(freecache.NewCache(10 * 1024 * 1024))
 		client = cacheM.New[any](freecacheStore)
 	}
 
